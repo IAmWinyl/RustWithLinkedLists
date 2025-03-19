@@ -1,6 +1,8 @@
-pub struct List<'a, T> {
+use std::ptr;
+
+pub struct List<T> {
     head: Link<T>,
-    tail: Option<&'a mut Node<T>>,
+    tail: *mut Node<T>,
 }
 
 type Link<T> = Option<Box<Node<T>>>;
@@ -10,41 +12,40 @@ struct Node<T> {
     next: Link<T>,
 }
 
-impl<'a, T> List<'a, T> {
+impl<T> List<T> {
     pub fn new() -> Self {
-        List { head: None, tail: None, }
+        List { head: None, tail: ptr::null_mut(), }
     }
 
-    pub fn push(&'a mut self, elem: T) {
-        // Create new tail node
-        let new_tail = Box::new(Node { elem, next: None } );
+    pub fn push(&mut self, elem: T) {
+        let mut new_tail = Box::new(Node {
+            elem,
+            next: None,
+        });
 
-        let new_tail = match self.tail.take() {
-            Some(old_tail) => {
-                // If the old tail existed, update it to point to the new tail
-                old_tail.next = Some(new_tail);
-                old_tail.next.as_deref_mut()
-            },
-            None => {
-                // Otherwise, update the head to point to it
-                self.head = Some(new_tail);
-                self.head.as_deref_mut()
-            },
-        };
-        
-        self.tail = new_tail;
+        let raw_tail: *mut _ = &mut *new_tail;
+
+        if !self.tail.is_null() {
+            unsafe {
+                (*self.tail).next = Some(new_tail);
+            }    
+        } else {
+            self.head = Some(new_tail);
+        }
+
+        self.tail = raw_tail;
     }
 
-    pub fn pop(&'a mut self) -> Option<T> {
-        self.head.take().map(|old_head| {
-            let old_head = *old_head;
-            self.head = old_head.next;
+    pub fn pop(&mut self) -> Option<T> {
+        self.head.take().map(|head| {
+            let head = *head;
+            self.head = head.next;
 
             if self.head.is_none() {
-                self.tail = None;
+                self.tail = ptr::null_mut();
             }
 
-            old_head.elem
+            head.elem
         })
     }
 }

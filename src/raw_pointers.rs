@@ -1,18 +1,20 @@
+use std::cell::Cell;
+
 fn main() {
-    fn opaque_read(val: &i32) {
-        println!("{}", val);
-    }
+    // fn opaque_read(val: &i32) {
+    //     println!("{}", val);
+    // }
 
     unsafe {
-        let mut data = 10;
+        let mut data = Cell::new(10);
         let mref1 = &mut data;
-        let ptr2 = mref1 as *mut i32;
+        let ptr2 = mref1 as *mut Cell<i32>;
         let sref3 = &*mref1;
 
-        *ptr2 += 2;
-        opaque_read(sref3); // Read in the wrong order?
-        *mref1 += 1;
+        sref3.set(sref3.get() + 3);
+        (*ptr2).set((*ptr2).get()+2);
+        mref1.set(mref1.get() + 1);
 
-        opaque_read(&data);
+        println!("{}", data.get())
     }
 }

@@ -41,9 +41,6 @@ impl<T> LinkedList<T> {
                 (*new.as_ptr()).back = Some(old);
             }
             else {
-                debug_assert!(self.back.is_none());
-                debug_assert!(self.front.is_none());
-                debug_assert!(self.len == 0);
                 self.back = Some(new);
             }
             self.front = Some(new);
@@ -56,13 +53,11 @@ impl<T> LinkedList<T> {
             self.front.map(|node| {
                 let boxed_old = Box::from_raw(node.as_ptr());
 
-                if let Some(new) = boxed_old.back {
+                self.front = boxed_old.back;
+                if let Some(new) = self.front {
                     (*new.as_ptr()).front = None;
-                    self.front = Some(new);
                 }
                 else {
-                    debug_assert!(self.len == 1);
-                    self.front = None;
                     self.back = None;
                 }
 

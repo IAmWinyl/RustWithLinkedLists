@@ -1,6 +1,10 @@
-use std::path::Iter;
 use std::ptr::NonNull;
 use std::marker::PhantomData;
+use std::cmp::Ordering;
+use std::fmt::{self, Debug};
+use std::hash::{Hash, Hasher};
+use std::iter::FromIterator;
+
 
 pub struct LinkedList<T> {
     front: Link<T>,
@@ -198,7 +202,7 @@ impl<T> Default for LinkedList<T> {
     }
 }
 
-impl<T: T> Clone for LinkedList<T> {
+impl<T: Clone> Clone for LinkedList<T> {
     fn clone(&self) -> Self {
         let mut new_list = Self::new();
         for item in self {
@@ -208,9 +212,64 @@ impl<T: T> Clone for LinkedList<T> {
     }
 }
 
+impl<T> Extend<T> for LinkedList<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.push_back(item);
+        }
+    }
+}
+
 impl<T> Drop for LinkedList<T> {
     fn drop(&mut self) {
         while let Some(_) = self.pop_front() { }
+    }
+}
+
+impl<T> FromIterator<T> for LinkedList<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut list = Self::new();
+        list.extend(iter);
+        list
+    }
+}
+
+impl<T: Debug> Debug for LinkedList<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self).finish()
+    }
+}
+
+impl<T: PartialEq> PartialEq for LinkedList<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.len == other.len && self.iter().eq(other)
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.len != other.len || !self.iter().eq(other)
+    }
+}
+
+impl<T: Eq> Eq for LinkedList<T> { }
+
+impl<T: PartialOrd> PartialOrd for LinkedList<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.iter().partial_cmp(other)
+    }
+}
+
+impl<T: Ord> Ord for LinkedList<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.iter().cmp(other)
+    }
+}
+
+impl<T: Hash> Hash for LinkedList<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.len().hash(state);
+        for item in self {
+            item.hash(state);
+        }
     }
 }
 
@@ -307,12 +366,12 @@ impl<'a, T> IntoIterator for &'a LinkedList<T> {
     type IntoIter = Iter<'a, T>;
     type Item = &'a T;
 
-    fn into_iter(&self) -> Self::IntoIter {
+    fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut LinkedList<'a, T> {
+impl<'a, T> IntoIterator for &'a mut LinkedList<T> {
     type IntoIter = IterMut<'a, T>;
     type Item = &'a mut T;
 

@@ -1,3 +1,4 @@
+use std::path::Iter;
 use std::ptr::NonNull;
 use std::marker::PhantomData;
 
@@ -181,6 +182,30 @@ impl<T> LinkedList<T> {
             list: self 
         }
     }
+    
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn clear(&mut self) {
+        while let Some(_) = self.pop_front() { }
+    }
+}
+
+impl<T> Default for LinkedList<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: T> Clone for LinkedList<T> {
+    fn clone(&self) -> Self {
+        let mut new_list = Self::new();
+        for item in self {
+            new_list.push_back(item.clone());
+        }
+        new_list
+    }
 }
 
 impl<T> Drop for LinkedList<T> {
@@ -275,6 +300,24 @@ impl<T> IntoIterator for LinkedList<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a LinkedList<T> {
+    type IntoIter = Iter<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(&self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut LinkedList<'a, T> {
+    type IntoIter = IterMut<'a, T>;
+    type Item = &'a mut T;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 

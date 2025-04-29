@@ -39,6 +39,12 @@ pub struct IntoIter<T> {
     list: LinkedList<T>,
 }
 
+pub struct CursorMut<'a, T> {
+    cur: Link<T>,
+    list: &'a mut LinkedList<T>,
+    index: Option<usize>,
+}
+
 impl<T> LinkedList<T> {
     pub fn new() -> Self {
         Self {
@@ -194,6 +200,164 @@ impl<T> LinkedList<T> {
     pub fn clear(&mut self) {
         while let Some(_) = self.pop_front() { }
     }
+
+    pub fn cursor_mut(&mut self) -> CursorMut<T> {
+        CursorMut { cur: None, list: self, index: None }
+    }
+}
+
+impl<'a, T> CursorMut<'a, T> {
+    pub fn index(&self) -> Option<usize> {
+        self.index
+    }
+
+    pub fn move_next(&mut self) {
+        if let Some(cur) = self.cur {
+            unsafe {
+                self.cur = (*cur.as_ptr()).back;
+                if self.cur.is_some() {
+                    *self.index.as_mut().unwrap() += 1;
+                } else {
+                    self.index = None;
+                }
+            }
+        } else if !self.list.is_empty() {
+            self.cur = self.list.front;
+            self.index = Some(0);
+        }
+        else {}
+    }
+
+    pub fn move_prev(&mut self) {
+        if let Some(cur) = self.cur {
+            unsafe {
+                self.cur = (*cur.as_ptr()).front;
+                if self.cur.is_some() {
+                    *self.index.as_mut().unwrap() -= 1;
+                } else {
+                    self.index = None;
+                }
+            }
+        } else if !self.list.is_empty() {
+            self.cur = self.list.back;
+            self.index = Some(self.list.len - 1)
+        } else {}
+    }
+
+    pub fn current(&mut self) -> Option<&mut T> {
+        unsafe {
+            self.cur.map(|node| &mut (*node.as_ptr()).elem)
+        }
+    }
+
+    pub fn peek_next(&mut self) -> Option<&mut T> {
+        unsafe {
+            self.cur
+                .and_then(|node| (*node.as_ptr()).back)
+                .or_else(|| self.list.front)
+                .map(|node| &mut (*node.as_ptr()).elem)
+        }
+    }
+    
+    pub fn peek_prev(&mut self) -> Option<&mut T> {
+        unsafe {
+            self.cur
+                .and_then(|node| (*node.as_ptr()).front)
+                .or_else(|| self.list.back)
+                .map(|node| &mut (*node.as_ptr()).elem)
+        }
+    }
+
+    pub fn split_before(&mut self) -> LinkedList<T> {
+        if let Some(cur) = self.cur {
+            unsafe {
+                // Current state
+                let old_len = self.list.len;
+                let old_idx = self.index.unwrap();
+                let prev = (*cur.as_ptr()).front;
+
+                // What self will become
+                let new_len = old_len - old_idx;
+                let new_front = self.cur;
+                let new_back = self.list.back;
+                let new_idx = Some(0);
+
+                // What the output will become
+                let output_len = old_len - new_len;
+                let output_front = self.list.front;
+                let output_back = prev;
+
+                // Break the links between cur and prev
+                if let Some(prev) = prev {
+                    (*cur.as_ptr()).front = None;
+                    (*prev.as_ptr()).back = None;
+                } else {
+                    self.list.front = None;
+                }
+
+                // Produce result
+                self.list.len = new_len;
+                self.list.front = new_front;
+                self.list.back = new_back;
+                self.index = new_idx;
+
+                LinkedList {
+                    front: output_front,
+                    back: output_back,
+                    len: output_len,
+                    _boo: PhantomData,
+                }
+            }
+        } else {
+            std::mem::replace(self.list, LinkedList::new())
+        }
+    }
+
+   pub fn split_after(&mut self) -> LinkedList<T> {
+    if let Some(cur) = self.cur {
+        unsafe {
+            // Current state
+            let old_len = self.list.len;
+            let old_idx = self.index.unwrap();
+            let next = (*cur.as_ptr()).back;
+
+            // What self will become
+            let new_len = old_idx + 1;
+            let new_front = self.list.front;
+            let new_back = self.cur;
+            let new_idx = Some(old_idx);
+
+            // What the output will become
+            let output_len = old_len - new_len;
+            let output_front = next;
+            let output_back = self.list.back;
+
+            // Break the links between cur and prev
+            if let Some(next) = next {
+                (*cur.as_ptr()).back = None;
+                (*next.as_ptr()).front = None;
+            } else {
+                self.list.back = None;
+            }
+
+            // Produce result
+            self.list.len = new_len;
+            self.list.front = new_front;
+            self.list.back = new_back;
+            self.index = new_idx;
+
+            LinkedList {
+                front: output_front,
+                back: output_back,
+                len: output_len,
+                _boo: PhantomData,
+            }
+        }
+    } else {
+        std::mem::replace(self.list, LinkedList::new())
+    }
+   } 
+
 }
 
 impl<T> Default for LinkedList<T> {
